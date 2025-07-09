@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/category_card.dart';
 import '../widgets/user_avatar.dart';
 
+
 class Kos {
   final String nama;
   final String alamat;
