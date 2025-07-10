@@ -11,22 +11,22 @@ class Kos {
   Kos(this.nama, this.alamat, this.telepon, this.gambarUrl);
 
   Map<String, dynamic> toJson() => {
-    'nama': nama,
-    'alamat': alamat,
-    'telepon': telepon,
-    'gambarUrl': gambarUrl,
-  };
+        'nama': nama,
+        'alamat': alamat,
+        'telepon': telepon,
+        'gambarUrl': gambarUrl,
+      };
 
   factory Kos.fromJson(Map<String, dynamic> json) => Kos(
-    json['nama'],
-    json['alamat'],
-    json['telepon'],
-    json['gambarUrl'] ?? '',
-  );
+        json['nama'],
+        json['alamat'],
+        json['telepon'],
+        json['gambarUrl'] ?? '',
+      );
 }
 
 class LihatSemuaKosPage extends StatefulWidget {
-  const LihatSemuaKosPage({Key? key}) : super(key: key);
+  const LihatSemuaKosPage({super.key}); // ✅ pakai super.key
 
   @override
   State<LihatSemuaKosPage> createState() => _LihatSemuaKosPageState();
@@ -44,6 +44,7 @@ class _LihatSemuaKosPageState extends State<LihatSemuaKosPage> {
   Future<void> _loadKos() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonData = prefs.getString('kos_list');
+    if (!mounted) return; // ✅ hindari akses context setelah await
     if (jsonData != null) {
       final data = jsonDecode(jsonData) as List;
       setState(() {
@@ -73,6 +74,7 @@ class _LihatSemuaKosPageState extends State<LihatSemuaKosPage> {
             onPressed: () async {
               setState(() => daftarKos.removeAt(index));
               await _saveKos();
+              if (!mounted) return; // ✅ jaga setelah async
               Navigator.pop(context);
             },
             child: Text("Hapus", style: TextStyle(color: Colors.red)),
@@ -121,6 +123,7 @@ class _LihatSemuaKosPageState extends State<LihatSemuaKosPage> {
               if (namaController.text.trim().isEmpty ||
                   alamatController.text.trim().isEmpty ||
                   teleponController.text.trim().isEmpty) {
+                if (!mounted) return; // ✅ sebelum ScaffoldMessenger
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(

@@ -1,77 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-
-class Kos {
-  final String nama;
-  final String alamat;
-  final String telepon;
-  final String gambar;
-
-  Kos(this.nama, this.alamat, this.telepon, this.gambar);
-
-  Map<String, dynamic> toJson() => {
-    'nama': nama,
-    'alamat': alamat,
-    'telepon': telepon,
-    'gambar': gambar,
-  };
-
-  factory Kos.fromJson(Map<String, dynamic> json) {
-    return Kos(
-      json['nama'],
-      json['alamat'],
-      json['telepon'],
-      json['gambar'] ?? '',
-    );
-  }
-}
+import '../model/kos.dart';
 
 class TambahKosPage extends StatefulWidget {
   final Function(Kos) onKosDitambahkan;
-  const TambahKosPage({super.key, required this.onKosDitambahkan});
+
+  const TambahKosPage({Key? key, required this.onKosDitambahkan})
+    : super(key: key);
 
   @override
   State<TambahKosPage> createState() => _TambahKosPageState();
 }
 
 class _TambahKosPageState extends State<TambahKosPage> {
+  final _formKey = GlobalKey<FormState>();
   final _namaController = TextEditingController();
   final _alamatController = TextEditingController();
   final _teleponController = TextEditingController();
-  final _gambarController = TextEditingController();
+  final _gambarUrlController = TextEditingController();
+  final _kategoriController = TextEditingController();
+  final _pemilikController = TextEditingController();
+  final _hargaController = TextEditingController(); // ✅ Tambahkan
 
-  void _simpanKos() async {
-    final nama = _namaController.text.trim();
-    final alamat = _alamatController.text.trim();
-    final telepon = _teleponController.text.trim();
-    final gambar = _gambarController.text.trim();
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _alamatController.dispose();
+    _teleponController.dispose();
+    _gambarUrlController.dispose();
+    _kategoriController.dispose();
+    _pemilikController.dispose();
+    _hargaController.dispose(); // ✅ Jangan lupa dispose
+    super.dispose();
+  }
 
-    if (nama.isEmpty || alamat.isEmpty || telepon.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Semua field wajib diisi (kecuali gambar)'),
-        ),
+  void _simpanKos() {
+    if (_formKey.currentState!.validate()) {
+      final kosBaru = Kos(
+        _namaController.text,
+        _alamatController.text,
+        _teleponController.text,
+        _gambarUrlController.text,
+        kategori: _kategoriController.text,
+        pemilik: _pemilikController.text,
+        harga: int.tryParse(_hargaController.text) ?? 0, // ✅ Parsing harga
       );
-      return;
+
+      widget.onKosDitambahkan(kosBaru);
+      Navigator.pop(context);
     }
-
-    final kosBaru = Kos(nama, alamat, telepon, gambar);
-    widget.onKosDitambahkan(kosBaru);
-
-    final prefs = await SharedPreferences.getInstance();
-    final existingData = prefs.getStringList('kos_list') ?? [];
-
-    final jsonData = kosBaru.toJson();
-    existingData.add(jsonEncode(jsonData));
-
-    await prefs.setStringList('kos_list', existingData);
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Kos berhasil disimpan')));
-
-    Navigator.pop(context);
   }
 
   @override
@@ -79,61 +55,64 @@ class _TambahKosPageState extends State<TambahKosPage> {
     return Scaffold(
       appBar: AppBar(title: const Text("Tambah Kos")),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: ListView(
             children: [
-              const Text(
-                "Form Tambah Kos",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              TextField(
+              TextFormField(
                 controller: _namaController,
-                decoration: const InputDecoration(
-                  labelText: "Nama Kos",
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: "Nama Kos"),
+                validator: _required,
               ),
-              const SizedBox(height: 16),
-              TextField(
+              TextFormField(
                 controller: _alamatController,
-                decoration: const InputDecoration(
-                  labelText: "Alamat",
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: "Alamat"),
+                validator: _required,
               ),
-              const SizedBox(height: 16),
-              TextField(
+              TextFormField(
                 controller: _teleponController,
-                decoration: const InputDecoration(
-                  labelText: "No. Telepon",
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: "Telepon"),
+                validator: _required,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _gambarController,
+              TextFormField(
+                controller: _gambarUrlController,
+                decoration: const InputDecoration(labelText: "URL Gambar"),
+              ),
+              TextFormField(
+                controller: _kategoriController,
+                decoration: const InputDecoration(labelText: "Kategori"),
+              ),
+              TextFormField(
+                controller: _pemilikController,
+                decoration: const InputDecoration(labelText: "Pemilik"),
+              ),
+              TextFormField(
+                controller: _hargaController,
                 decoration: const InputDecoration(
-                  labelText: "URL Gambar (Opsional)",
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.url,
+                  labelText: "Harga (Rp)",
+                ), // ✅ Harga
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Wajib diisi';
+                  if (int.tryParse(value) == null) return 'Harus berupa angka';
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _simpanKos,
-                  child: const Text("Simpan"),
-                ),
+              ElevatedButton(
+                onPressed: _simpanKos,
+                child: const Text("Simpan"),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String? _required(String? value) {
+    if (value == null || value.isEmpty) return 'Wajib diisi';
+    return null;
   }
 }

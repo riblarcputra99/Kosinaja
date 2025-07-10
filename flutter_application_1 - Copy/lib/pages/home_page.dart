@@ -1,173 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../widgets/category_card.dart';
-import '../widgets/user_avatar.dart';
-
-
-class Kos {
-  final String nama;
-  final String alamat;
-  final String telepon;
-  final String gambar;
-
-  Kos(this.nama, this.alamat, this.telepon, this.gambar);
-
-  Map<String, dynamic> toJson() => {
-    'nama': nama,
-    'alamat': alamat,
-    'telepon': telepon,
-    'gambar': gambar,
-  };
-
-  factory Kos.fromJson(Map<String, dynamic> json) =>
-      Kos(json['nama'], json['alamat'], json['telepon'], json['gambar']);
-}
-
-Future<void> simpanKos(List<Kos> data) async {
-  final prefs = await SharedPreferences.getInstance();
-  final jsonData = jsonEncode(data.map((e) => e.toJson()).toList());
-  await prefs.setString('kos_list', jsonData);
-}
-
-Future<List<Kos>> bacaKos() async {
-  final prefs = await SharedPreferences.getInstance();
-  final jsonData = prefs.getString('kos_list');
-  if (jsonData == null) return [];
-  final List<dynamic> list = jsonDecode(jsonData);
-  return list.map((e) => Kos.fromJson(e)).toList();
-}
-
-class LihatSemuaKosPage extends StatelessWidget {
-  final List<Kos> daftarKos;
-  const LihatSemuaKosPage({super.key, required this.daftarKos});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Lihat Semua Kos")),
-      body: daftarKos.isEmpty
-          ? const Center(child: Text("Belum ada data kos."))
-          : ListView.builder(
-              itemCount: daftarKos.length,
-              itemBuilder: (context, index) {
-                final kos = daftarKos[index];
-                return Card(
-                  margin: const EdgeInsets.all(8),
-                  child: ListTile(
-                    leading: kos.gambar.isNotEmpty
-                        ? Image.network(
-                            kos.gambar,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                          )
-                        : const Icon(Icons.home, size: 40),
-                    title: Text(kos.nama),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(kos.alamat),
-                        Text("Telp: ${kos.telepon}"),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
-  }
-}
-
-class TambahKosPage extends StatefulWidget {
-  final Function(Kos) onKosDitambahkan;
-  const TambahKosPage({super.key, required this.onKosDitambahkan});
-
-  @override
-  State<TambahKosPage> createState() => _TambahKosPageState();
-}
-
-class _TambahKosPageState extends State<TambahKosPage> {
-  final _namaController = TextEditingController();
-  final _alamatController = TextEditingController();
-  final _teleponController = TextEditingController();
-  final _gambarController = TextEditingController();
-
-  void _simpanKos() {
-    final nama = _namaController.text.trim();
-    final alamat = _alamatController.text.trim();
-    final telepon = _teleponController.text.trim();
-    final gambar = _gambarController.text.trim();
-
-    if (nama.isEmpty || alamat.isEmpty || telepon.isEmpty) return;
-
-    widget.onKosDitambahkan(Kos(nama, alamat, telepon, gambar));
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Tambah Kos")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Form Tambah Kos",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _namaController,
-                decoration: const InputDecoration(
-                  labelText: "Nama Kos",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _alamatController,
-                decoration: const InputDecoration(
-                  labelText: "Alamat",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _teleponController,
-                decoration: const InputDecoration(
-                  labelText: "No. Telepon",
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _gambarController,
-                decoration: const InputDecoration(
-                  labelText: "URL Gambar (Opsional)",
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _simpanKos,
-                  child: const Text("Simpan"),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+import '../model/kos.dart' as model;
+import '../services/kos_service.dart';
+import 'lihat_semua_kos_page.dart';
+import 'tambah_kos_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -177,57 +12,94 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Kos> _semuaKos = [];
+  final List<model.Kos> _semuaKos = [];
 
   @override
   void initState() {
     super.initState();
-    bacaKos().then((data) {
-      setState(() {
-        _semuaKos.addAll(data);
-      });
+
+    _semuaKos.addAll([
+      model.Kos(
+        'Kos Mawar',
+        'Jl. Melati No.1',
+        '081234567890',
+        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTgVF-kJ_JDB1HNeoUiKJRpvkzokIg5GfMtSQ&s',
+        kategori: 'Putri',
+        pemilik: 'Bu Sari',
+        harga: 750000,
+      ),
+      model.Kos(
+        'Kos Melati',
+        'Jl. Kenanga No.2',
+        '081234567891',
+        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSn7xeAWU1TNouLNV5NhN92qp-UcFbdmVvRg&s',
+        kategori: 'Putra',
+        pemilik: 'Pak Andi',
+        harga: 650000,
+      ),
+      model.Kos(
+        'Kos Sakura',
+        'Jl. Sakura No.3',
+        '081234567892',
+        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRGA9yDbqPCeGdHmm71IXPft0l0nQAhK6Rzgg&s',
+        kategori: 'Campur',
+        pemilik: 'Mas Budi',
+        harga: 800000,
+      ),
+    ]);
+
+    // 🔄 Tambahan dari KosService jika ada
+    KosService.bacaKos().then((data) {
+      if (mounted) {
+        setState(() {
+          _semuaKos.addAll(data);
+        });
+      }
     });
   }
 
-  void _tambahKosBaru(Kos kos) {
+  void _tambahKosBaru(model.Kos kos) {
     setState(() {
       _semuaKos.add(kos);
     });
-    simpanKos(_semuaKos);
+    KosService.simpanKos(_semuaKos);
+  }
+
+  void _filterByKategori(String kategori) {
+    final filtered = _semuaKos
+        .where((kos) => kos.kategori.toLowerCase() == kategori.toLowerCase())
+        .toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LihatSemuaKosPage(daftarKos: filtered),
+      ),
+    );
+  }
+
+  void _filterByPemilik(String pemilik) {
+    final filtered = _semuaKos
+        .where(
+          (kos) => kos.pemilik.toLowerCase().contains(pemilik.toLowerCase()),
+        )
+        .toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LihatSemuaKosPage(daftarKos: filtered),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('KOSinAJA'),
-        actions: const [Icon(Icons.refresh), SizedBox(width: 12)],
-      ),
+      appBar: AppBar(title: const Text('KOSinAJA')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.lightBlueAccent.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Pakai kode KOS20",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  SizedBox(height: 4),
-                  Text("Dapatkan diskon 20% saat booking kos pertamamu!"),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
             const Text(
               "Kategori Kos",
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -235,10 +107,10 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: const [
-                CategoryCard(icon: Icons.male, title: "Putra"),
-                CategoryCard(icon: Icons.female, title: "Putri"),
-                CategoryCard(icon: Icons.people, title: "Campur"),
+              children: [
+                _buildCategoryCard("Putra"),
+                _buildCategoryCard("Putri"),
+                _buildCategoryCard("Campur"),
               ],
             ),
             const SizedBox(height: 24),
@@ -249,10 +121,10 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: const [
-                UserAvatar(name: "Pak Andi"),
-                UserAvatar(name: "Bu Sari"),
-                UserAvatar(name: "Mas Budi"),
+              children: [
+                _buildUserAvatar("Pak Andi"),
+                _buildUserAvatar("Bu Sari"),
+                _buildUserAvatar("Mas Budi"),
               ],
             ),
             const SizedBox(height: 24),
@@ -292,6 +164,32 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(String title) {
+    return GestureDetector(
+      onTap: () => _filterByKategori(title),
+      child: Column(
+        children: [
+          const CircleAvatar(child: Icon(Icons.home)),
+          const SizedBox(height: 4),
+          Text(title),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserAvatar(String name) {
+    return GestureDetector(
+      onTap: () => _filterByPemilik(name),
+      child: Column(
+        children: [
+          const CircleAvatar(child: Icon(Icons.person)),
+          const SizedBox(height: 4),
+          Text(name),
+        ],
       ),
     );
   }
